@@ -1,0 +1,92 @@
+---
+title: "Museums in UK"
+author: "Tamas Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+```
+
+# Read data
+```{r}
+museums_raw <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-11-22/museums.csv')
+
+```
+
+# Preprocess data
+```{r}
+museums <-
+    museums_raw %>% 
+    mutate(Subject_Matter = str_replace_all(Subject_Matter, 
+                                            pattern = "_|-", 
+                                            replacement = " "),
+           Year_opened = parse_number(Year_opened),
+           Year_closed = parse_number(Year_closed) %>% 
+                         if_else(. == 9999, true = 2023, false = .))
+    
+museums %>% glimpse()
+
+```
+
+
+# Start to exploring the data
+```{r}
+museums %>% 
+    count(Subject_Matter, sort = TRUE)
+
+museums %>% 
+    mutate(Subject_Matter = fct_lump(Subject_Matter, n = 20) %>% 
+                            fct_infreq() %>% 
+                            fct_rev()) %>% 
+    ggplot() +
+    aes(y = Subject_Matter, fill = Subject_Matter) +
+    geom_bar(show.legend = FALSE) +
+    labs(y = NULL, 
+         x = "Nr. of museums",
+         title = "22 most frequent museum topics in the UK")
+```
+
+# Check opening and closing times
+
+```{r}
+museums %>% 
+    ggplot() +
+    aes(x = Year_opened) +
+    geom_histogram()
+
+museums %>% 
+    ggplot() +
+    aes(x = Year_closed) +
+    geom_histogram()
+```
+
+# Plot opening and closing times and duration
+
+
+```{r}
+set.seed(123)
+
+museums %>% 
+    filter(Year_closed < 2023) %>% 
+    sample_n(15) %>% 
+    mutate(Name_of_museum = fct_reorder(Name_of_museum, Year_opened),
+           duration = Year_closed - Year_opened) %>% 
+    ggplot() +
+    aes(y = Name_of_museum) +
+    geom_segment(aes(x = Year_opened, xend = Year_closed, yend = Name_of_museum),
+                 alpha = .7) +
+    geom_point(aes(x = Year_opened), color = "green", size = 2) +
+    geom_point(aes(x = Year_closed), color = "red", size = 2) +
+    geom_text(x = 1840, aes(label = paste0("Duration:", duration))) +
+    theme_light() +
+    xlim(c(1800, 2023)) +
+    labs(x = NULL, y = NULL,
+         title = "Opening and closing times for 15 random closed museums")
+    
+
+```
+
